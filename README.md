@@ -30,5 +30,45 @@
 3. 随机生成块：包括随机生成方块的图案和坐标。首先我根据全局参数计算出了总块数，然后用 shuffle 函数打乱存储所有动物图案的数组，再依次将数组中的图案填充到方块中。生成坐标的原理是随机选取坐标范围内的点，坐标范围可以随着层级的增加而递减，即生成的图案越来越挤，达到难度逐层加大的效果。
 4. 块的覆盖关系：怎么做到点击上层的块后，才能点下层的块呢？首先要给每个块指定一个层级属性。然后有两种思路，第 1 种是先逐层生成，然后每个格子里层级最高的块依次判断其周围格子有没有块层级大于它；第 2 种是在随机生成块的时候就给相互重叠的块绑定层级关系（即谁覆盖了我？我覆盖了谁？）。这里我选择了第 2 种方法，感觉效率会高一些。
 
+## Deploy to Cloudflare Pages (Free)
+
+In **Workers & Pages → Create application → Pages**, import your GitHub fork
+using the native Git integration. Authorize only this repository when possible.
+
+| Setting | Value |
+| --- | --- |
+| Plan | Free |
+| Framework preset | Vue |
+| Production branch | `master` (preserve the fork's actual default branch) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | Repository root (leave blank) |
+| Build environment variable | `YARN_VERSION=1.22.22` for production and previews |
+| Node.js | `24.19.0`, pinned in `.node-version` |
+
+Keep automatic production deployments enabled. Pages installs dependencies from
+the existing `yarn.lock`; use Yarn Classic rather than generating a second lockfile.
+Use the free `*.pages.dev` address. No Functions, database, paid service, or custom
+domain is needed. The existing hash routes (`/#/`, `/#/game`, `/#/config`) work on
+static hosting without redirects.
+
+To reproduce the build locally:
+
+```sh
+npx --yes yarn@1.22.22 install --frozen-lockfile
+npm run build
+npm run preview
+```
+
+References: [Pages GitHub integration](https://developers.cloudflare.com/pages/configuration/git-integration/github-integration/)
+and [build environment versions](https://developers.cloudflare.com/pages/configuration/build-image/).
+
+### Attribution and licensing
+
+Original game by [程序员鱼皮 (liyupi)](https://github.com/liyupi/yulegeyu).
+The upstream repository has no explicit license file or `package.json` license
+declaration at the source revision used by this fork. No license has been added;
+the README's open-source wording alone does not specify license terms.
+
 
 
