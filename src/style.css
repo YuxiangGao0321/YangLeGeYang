@@ -1,0 +1,26 @@
+:root {
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  color: #35412b;
+  background: #c1ef87;
+  font-synthesis: none;
+  --farm-green: #c1ef87;
+  --farm-ink: #35412b;
+  --farm-cream: #fff9d9;
+}
+* { box-sizing: border-box; }
+html { min-width: 0; min-height: 100%; background: #c1ef87; }
+body { margin: 0; min-width: 0; min-height: 100vh; color: #35412b; background: #c1ef87; font-family: inherit; -webkit-tap-highlight-color: transparent; }
+button, input { font: inherit; }
+button { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #356a86; outline-offset: 4px; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+.farm-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 22px; color: #35412b; background: #fff9d9; border: 3px solid #35412b; border-radius: 13px; box-shadow: 0 6px 0 #75aab5, 0 9px 0 #35412b; font-weight: 850; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+.farm-button:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 #75aab5, 0 4px 0 #35412b; }
+.farm-button:hover:not(:disabled) { filter: brightness(1.025); }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 43px; height: 43px; border: 2.5px solid #35412b; border-radius: 10px; color: #35412b; background: #fff9d9; box-shadow: 0 3px 0 #91aa60; font-size: 23px; font-weight: 800; cursor: pointer; transition: transform .12s ease; }
+.icon-button:active:not(:disabled) { transform: translateY(2px); }
+.icon-button svg { width: 23px; height: 23px; }
+.paper-panel { border: 2.5px solid #53643b; border-radius: 16px; background: #fff9d9; box-shadow: 0 4px 0 rgba(88, 117, 48, .23); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}

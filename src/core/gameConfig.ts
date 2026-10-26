@@ -1,27 +1,8 @@
-// 动物数组
-const animals = [
-  "🐔",
-  "🐟",
-  "🦆",
-  "🐶",
-  "🐱",
-  "🐴",
-  "🐑",
-  "🐦",
-  "🐧",
-  "🐊",
-  "🐺",
-  "🐒",
-  "🐳",
-  "🐬",
-  "🐢",
-  "🦖",
-  "🦒",
-  "🦁",
-  "🐍",
-  "🐭",
-  "🐂",
-];
+// Stable artwork keys keep the default game independent of OS emoji fonts.
+// Arbitrary text / emoji is still supported by the custom game.
+const animals = Array.from({ length: 21 }, (_, i) =>
+  `farm:${String(i + 1).padStart(2, "0")}`
+);
 
 export const defaultGameConfig: GameConfigType = {
   // 槽容量

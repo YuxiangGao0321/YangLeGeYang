@@ -15,6 +15,9 @@ interface BlockType {
   lowerThanBlocks: BlockType[];
 }
 
+/** A fixed tray position is either occupied or empty. */
+type SlotBlockType = BlockType | null;
+
 /**
  * 每个格子单元类型
  */
