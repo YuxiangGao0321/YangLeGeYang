@@ -1,59 +1,72 @@
 <template>
-  <main id="gamePage" :data-game-status="gameStatus" :data-busy="busy" :inert="resultOpen ? '' : undefined">
+  <main id="gamePage" :class="{ 'easy-game': isEasy, 'classic-game': isClassic, 'has-reserve': reserveBlocksVal.length > 0 }" :style="{ '--board-units': boardUnits }" :data-game-status="gameStatus" :data-busy="busy" :inert="resultOpen ? '' : undefined">
+    <svg class="pasture-marks" viewBox="0 0 390 844" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <path id="grass-crown" d="M2 17C-5 7 2 3 8 12 5-6 15-5 15 10 20-8 28-2 23 12 33 1 36 9 30 17" />
+        <path id="grass-stems" d="M3 20C-5-8 8-7 9 18 7 3 17 6 15 21m4-9 2 9" />
+      </defs>
+      <g fill="none" stroke="#78a94a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <use href="#grass-crown" x="72" y="86" transform="rotate(-9 88 97)" />
+        <use href="#grass-crown" x="286" y="43" />
+        <use href="#grass-crown" x="246" y="143" transform="scale(.92)" />
+        <use href="#grass-crown" x="49" y="245" transform="scale(.9)" />
+        <use href="#grass-stems" x="24" y="195" />
+        <use href="#grass-stems" x="46" y="498" />
+        <use href="#grass-stems" x="353" y="507" />
+      </g>
+    </svg>
+    <button v-if="settingsOpen" class="settings-scrim" tabindex="-1" aria-label="关闭设置" @click="settingsOpen = false"></button>
     <header class="game-toolbar">
-      <button class="icon-button" aria-label="返回首页" @click="router.push('/')"><UiIcon name="back" /></button>
-      <span class="mode-label">{{ modeName }}</span>
-      <div class="toolbar-actions">
-        <button class="icon-button" :aria-label="soundOn ? '关闭音效' : '开启音效'" :aria-pressed="soundOn" @click="toggleSound"><UiIcon name="sound" :muted="!soundOn" /></button>
-        <button class="icon-button" aria-label="重新开始" @click="restart"><UiIcon name="restart" /></button>
-      </div>
+      <button class="settings-toggle" aria-label="游戏设置" :aria-expanded="settingsOpen" @click="settingsOpen = !settingsOpen"><UiIcon name="settings" /></button>
+      <span class="mode-label" :class="{ 'visually-hidden': isEasy }">{{ modeName }}</span>
+      <nav v-if="settingsOpen" class="settings-panel paper-panel" aria-label="游戏设置菜单" @keydown.esc="settingsOpen = false">
+        <button class="settings-action" @click="router.push('/')"><UiIcon name="back" />返回首页</button>
+        <button class="settings-action" :aria-pressed="soundOn" @click="toggleSound"><UiIcon name="sound" :muted="!soundOn" />{{ soundOn ? '关闭音效' : '开启音效' }}</button>
+        <button class="settings-action" @click="restart(); settingsOpen = false"><UiIcon name="restart" />重新开始</button>
+        <button class="settings-action" :aria-expanded="showExtra" @click="showExtra = !showExtra"><UiIcon name="more" />更多道具</button>
+        <div v-if="showExtra" class="extra-tools">
+          <button class="settings-action" :disabled="busy || gameStatus !== 1" @click="breakGroup"><UiIcon name="spark" />消除一组</button>
+          <button class="settings-action" :aria-pressed="isHolyLight" :disabled="busy || gameStatus !== 1" @click="doHolyLight(); settingsOpen = false; notify('下一张可以选择任意牌')"><UiIcon name="spark" />圣光</button>
+          <button class="settings-action" :aria-pressed="canSeeRandom" :disabled="busy || gameStatus !== 1" @click="doSeeRandom()"><UiIcon name="eye" />透视</button>
+        </div>
+      </nav>
     </header>
-    <div class="game-heading"><i></i><h1>牧场挑战</h1><i></i></div>
-    <div class="progress-area">
-      <div class="progress-track" role="progressbar" :aria-valuenow="clearBlockNum" :aria-valuemax="totalBlockNum" aria-valuemin="0" aria-label="消除进度"><span :style="{ width: `${progress}%` }"></span></div>
-      <span class="progress-count">{{ clearBlockNum }} / {{ totalBlockNum }}</span>
-    </div>
+    <h1 class="visually-hidden">{{ modeName }} · 叠牌消除</h1>
+    <div class="visually-hidden" role="progressbar" :aria-valuenow="clearBlockNum" :aria-valuemax="totalBlockNum" aria-valuemin="0" aria-label="消除进度">{{ clearBlockNum }} / {{ totalBlockNum }}</div>
     <section class="playfield" aria-label="叠牌区域">
-      <svg class="field-grass grass-one" viewBox="0 0 40 26" aria-hidden="true"><path d="M6 23C-3 5 9 6 14 20c-4-30 9-25 9-1 8-24 21-16 9 5" /></svg>
-      <svg class="field-grass grass-two" viewBox="0 0 40 26" aria-hidden="true"><path d="M6 23C-3 5 9 6 14 20c-4-30 9-25 9-1 8-24 21-16 9 5" /></svg>
       <div class="level-board" :class="{ 'holy-field': isHolyLight }">
         <button v-for="block in visibleBlocks" :key="block.id" class="tile level-tile" :class="{ covered: isCovered(block), queued: queuedIds.includes(block.id) }"
           :data-source-id="block.id" :data-type="block.type" :aria-label="`${tileName(block.type)}${isCovered(block) ? '，被遮挡' : ''}`"
           :disabled="isCovered(block) || queuedIds.includes(block.id) || gameStatus !== 1"
-          :style="{ left: `${block.x / 24 * 100}%`, top: `${block.y / 24 * 100}%`, zIndex: block.level + 1 }" @click="enqueue(block)"><TileIcon :type="block.type" /></button>
+          :style="{ left: `${block.x / boardUnits * 100}%`, top: `${block.y / boardUnits * 100}%`, zIndex: block.level + 1 }" @click="enqueue(block)"><TileIcon :type="block.type" /></button>
       </div>
-      <div class="random-board" aria-label="备用牌堆">
+      <div v-if="randomBlocksVal.some(pile => pile.length)" class="random-board" aria-label="备用牌堆">
         <div v-for="(pile, index) in randomBlocksVal" :key="index" class="random-pile">
-          <span v-for="n in Math.min(Math.max(pile.length - 1, 0), 7)" :key="n" class="tile pile-back" :style="{ left: `${(7 - n) * 4}px`, top: `${-n * 2}px` }" aria-hidden="true"><TileIcon v-if="canSeeRandom && pile[n]" :type="pile[n].type" /></span>
+          <span v-for="n in Math.min(Math.max(pile.length - 1, 0), 9)" :key="n" class="tile pile-back" :style="{ top: `calc(${n * -1} * var(--pile-step))`, zIndex: 10 - n }" aria-hidden="true"><TileIcon v-if="canSeeRandom && pile[n]" :type="pile[n].type" /></span>
           <button v-if="pile[0]" class="tile pile-top" :data-source-id="pile[0].id" :data-type="pile[0].type" :aria-label="`备用牌：${tileName(pile[0].type)}`" :disabled="queuedIds.includes(pile[0].id) || gameStatus !== 1" @click="enqueue(pile[0], index)"><TileIcon :type="pile[0].type" /></button>
-          <span v-if="pile.length" class="pile-count">{{ pile.length }}</span>
+          <span v-if="pile.length" class="visually-hidden">剩余 {{ pile.length }} 张</span>
         </div>
       </div>
     </section>
-    <div class="reserve-area" :class="{ empty: !reserveBlocksVal.length }" aria-label="移出暂存区">
-      <span v-if="reserveBlocksVal.length" class="reserve-label">暂存</span>
-      <button v-for="block in reserveBlocksVal" :key="block.id" class="tile reserve-tile" :data-source-id="block.id" :data-type="block.type" :aria-label="`暂存牌：${tileName(block.type)}`" :disabled="busy || gameStatus !== 1" @click="enqueue(block)"><TileIcon :type="block.type" /></button>
-      <span v-if="!reserveBlocksVal.length" class="play-hint">{{ isHolyLight ? '圣光已开启 · 下一张任意选' : '凑齐三个相同图案，即可消除' }}</span>
-    </div>
-    <section class="rack-section" aria-label="收集卡槽">
-      <div class="rack" :class="{ danger: currSlotNum >= slotCount - 1, 'rack-failed': gameStatus === 2 }">
-        <div class="rack-grid" :style="{ '--slots': slotCount }">
-          <span v-for="n in slotCount" :key="n" class="slot-guide" :style="{ left: `${(n - 1) / slotCount * 100}%` }" aria-hidden="true"></span>
-          <div v-for="(block, index) in displaySlots" :key="block.id" class="tile rack-tile" :data-slot-id="block.id" :data-type="block.type" :data-matching="matchingIds.includes(block.id)" :style="{ left: `${index / slotCount * 100}%`, visibility: hiddenIds.includes(block.id) ? 'hidden' : 'visible' }"><TileIcon :type="block.type" /></div>
-        </div>
+    <div class="bottom-ui">
+      <div class="reserve-area" :class="{ empty: !reserveBlocksVal.length }" aria-label="移出暂存区">
+        <span v-if="reserveBlocksVal.length" class="reserve-label">暂存</span>
+        <button v-for="block in reserveBlocksVal" :key="block.id" class="tile reserve-tile" :data-source-id="block.id" :data-type="block.type" :aria-label="`暂存牌：${tileName(block.type)}`" :disabled="busy || gameStatus !== 1" @click="enqueue(block)"><TileIcon :type="block.type" /></button>
+        <span v-if="!reserveBlocksVal.length" class="visually-hidden">凑齐三个相同图案，即可消除</span>
       </div>
-      <div class="rack-caption"><span>{{ currSlotNum >= slotCount - 1 ? '快满啦，找找能消除的牌！' : '小心别让卡槽装满哦' }}</span><span>{{ currSlotNum }} / {{ slotCount }}</span></div>
-    </section>
-    <nav class="tools" aria-label="游戏道具">
-      <button class="tool-button" :disabled="busy || gameStatus === 3 || !currSlotNum" @click="removeTiles"><span class="tool-face"><UiIcon name="remove" /><span class="tool-plus">+</span></span><span>移出</span></button>
-      <button class="tool-button" :disabled="busy || !canUndo || gameStatus === 3" @click="undo"><span class="tool-face"><UiIcon name="undo" /><span class="tool-plus">+</span></span><span>撤回</span></button>
-      <button class="tool-button" :disabled="busy || gameStatus !== 1" @click="shuffle"><span class="tool-face"><UiIcon name="shuffle" /><span class="tool-plus">+</span></span><span>洗牌</span></button>
-    </nav>
-    <div class="extra-tools-row"><span>道具不限次数</span><button class="text-button" :aria-expanded="showExtra" @click="showExtra = !showExtra">{{ showExtra ? '收起' : '更多道具' }} <span aria-hidden="true">{{ showExtra ? '−' : '+' }}</span></button></div>
-    <div v-if="showExtra" class="extra-tools">
-      <button class="farm-button" :disabled="busy || gameStatus !== 1" @click="breakGroup"><UiIcon name="spark" />消除一组</button>
-      <button class="farm-button" :class="{ selected: isHolyLight }" :disabled="busy || gameStatus !== 1" @click="doHolyLight(); notify('下一张可以选择任意牌')"><UiIcon name="spark" />圣光</button>
-      <button class="farm-button" :aria-pressed="canSeeRandom" :disabled="busy || gameStatus !== 1" @click="doSeeRandom()"><UiIcon name="eye" />透视</button>
+      <section class="rack-section" aria-label="收集卡槽">
+        <div class="rack" :class="{ danger: currSlotNum >= slotCount - 1, 'rack-failed': gameStatus === 2 }">
+          <div class="rack-grid" :style="{ '--slots': slotCount }">
+            <div v-for="(block, index) in displaySlots" :key="block.id" class="tile rack-tile" :data-slot-id="block.id" :data-type="block.type" :data-matching="matchingIds.includes(block.id)" :style="{ left: `${index / slotCount * 100}%`, visibility: hiddenIds.includes(block.id) ? 'hidden' : 'visible' }"><TileIcon :type="block.type" /></div>
+          </div>
+        </div>
+        <div class="visually-hidden" role="status">{{ currSlotNum >= slotCount - 1 ? '卡槽快满了' : '收集卡槽' }}，{{ currSlotNum }} / {{ slotCount }}</div>
+      </section>
+      <nav class="tools" aria-label="游戏道具">
+        <button class="tool-button" aria-label="移出" :disabled="busy || gameStatus === 3 || !currSlotNum" @click="removeTiles"><UiIcon name="remove" /><span class="tool-label">移出</span><span class="tool-plus" aria-hidden="true">+</span></button>
+        <button class="tool-button" aria-label="撤回" :disabled="busy || !canUndo || gameStatus === 3" @click="undo"><UiIcon name="undo" /><span class="tool-label">撤回</span><span class="tool-plus" aria-hidden="true">+</span></button>
+        <button class="tool-button" aria-label="洗牌" :disabled="busy || gameStatus !== 1" @click="shuffle"><UiIcon name="shuffle" /><span class="tool-label">洗牌</span><span class="tool-plus" aria-hidden="true">+</span></button>
+      </nav>
     </div>
     <Transition name="toast"><div v-if="toast" class="game-toast" role="status">{{ toast }}</div></Transition>
     <Teleport to="body">
@@ -87,8 +100,11 @@ const router = useRouter();
 const store = useGlobalStore();
 const { gameStatus, levelBlocksVal, randomBlocksVal, reserveBlocksVal, slotAreaVal, currSlotNum, totalBlockNum, clearBlockNum, pendingMatchIds, canUndo, isHolyLight, canSeeRandom, doClickBlock, settleMatch, doStart, doShuffle, doRemove, doRevert, doHolyLight, doSeeRandom, findMatchBlocks } = useGame();
 const slotCount = computed(() => store.gameConfig.slotNum);
-const modeName = computed(() => ({ 8: '轻松牧场', 10: '进阶牧场', 12: '困难牧场', 14: '地狱挑战', 16: '天狱挑战', 18: '羊群挑战' }[store.gameConfig.typeNum] || '自定义牧场'));
-const progress = computed(() => totalBlockNum.value ? clearBlockNum.value / totalBlockNum.value * 100 : 0);
+const isEasy = computed(() => store.gameConfig.boardLayout === 'classic-easy');
+const isClassic = computed(() => !!store.gameConfig.boardLayout);
+const boardUnits = computed(() => isClassic.value ? 21 : 24);
+const modeName = computed(() => isEasy.value ? '第 1 关 · 简单' : store.gameConfig.boardLayout === 'classic-normal' ? '第 2 关 · 正常' : ({ 8: '轻松牧场', 10: '进阶牧场', 12: '困难牧场', 14: '地狱挑战', 16: '天狱挑战', 18: '羊群挑战' }[store.gameConfig.typeNum] || '自定义牧场'));
+const settingsOpen = ref(false);
 const visibleBlocks = computed(() => levelBlocksVal.value.filter(b => b.status === 0));
 const busy = ref(false), displaySlots = ref<BlockType[]>([]), hiddenIds = ref<number[]>([]), matchingIds = ref<number[]>([]), queuedIds = ref<number[]>([]), showExtra = ref(false);
 const resultOpen = computed(() => gameStatus.value > 1 && !busy.value);
@@ -267,65 +283,57 @@ onUnmounted(() => { disposed = true; cancelVisuals(); if (audio) void audio.clos
 </script>
 
 <style scoped>
-#gamePage { padding: 14px 12px 24px; color: #41482c; max-width: 420px; margin: 0 auto; }
-.game-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.toolbar-actions { display: flex; gap: 8px; }
-.game-toolbar .icon-button { width: 36px; height: 36px; padding: 7px; border-radius: 9px; }
-.mode-label { margin-right: auto; font-size: 13px; font-weight: 700; color: #566b37; }
-.game-heading { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 20px 0 11px; }
-.game-heading h1 { font-size: 27px; font-weight: 950; letter-spacing: 5px; margin: 0; color: #35492d; }
-.game-heading i { width: 25px; height: 3px; border-radius: 2px; background: #4e6534; }
-.progress-area { display: flex; gap: 10px; align-items: center; width: 79%; margin: 0 auto; }
-.progress-track { height: 11px; flex: 1; border: 2px solid #617d36; border-radius: 7px; overflow: hidden; background: #a4cc6b; box-shadow: inset 0 2px 0 #92b95c; }
-.progress-track span { display: block; height: 100%; background: #fff4a6; border-radius: 5px; transition: width .35s ease; }
-.progress-count { min-width: 54px; font: 700 11px/1.4 ui-rounded, system-ui, sans-serif; }
-.playfield { position: relative; max-width: 348px; margin: 23px auto 0; }
-.level-board { position: relative; width: 100%; aspect-ratio: 1; isolation: isolate; }
-.field-grass { width: 27px; position: absolute; fill: none; stroke: #83b74a; stroke-width: 2.6; stroke-linecap: round; pointer-events: none; }
-.grass-one { left: -8px; top: 48%; transform: rotate(-14deg); }
-.grass-two { right: 6px; top: -15px; transform: scale(.8); }
-.tile { display: flex; align-items: center; justify-content: center; padding: 1px; border: 2px solid #53652d; border-radius: 5px; background: #fff9d9; box-shadow: inset 0 -5px 0 #becb74, inset 0 2px 0 #fffef0, 0 2px 0 #47582c; color: #3b4825; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+#gamePage { position: relative; isolation: isolate; container-type: inline-size; width: 100%; height: 100svh; min-height: 174cqw; margin: 0 auto; color: #344322; --tile-depth: clamp(4px, 1.15cqw, 7px); --board-size: 84cqw; --tile-size: calc(var(--board-size) * 3 / var(--board-units)); --pile-step: clamp(3px, .95cqw, 6px); }
+.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip-path: inset(50%) !important; white-space: nowrap !important; border: 0 !important; }
+.pasture-marks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+.game-toolbar { position: absolute; z-index: 600; top: 4.7%; left: 2%; right: 2%; height: 11cqw; pointer-events: none; }
+.settings-toggle { display: grid; place-items: center; width: 10.6cqw; height: 10.6cqw; padding: 1.1cqw; border: clamp(2px, .7cqw, 4px) solid #192111; border-radius: 1.5cqw; background: #0aaaf4; color: #fff; box-shadow: inset 0 2px 0 #7bdcff, 0 3px 0 #526b35; cursor: pointer; pointer-events: auto; }
+.settings-toggle:active { transform: translateY(2px); }
+.mode-label { position: absolute; left: 50%; top: 2.5cqw; transform: translateX(-50%); padding: 5px 12px; border-radius: 5px; color: #fffde9; background: #17230e; font-size: clamp(12px, 3.2cqw, 19px); font-weight: 700; line-height: 1.15; white-space: nowrap; }
+.settings-scrim { position: fixed; z-index: 500; inset: 0; border: 0; padding: 0; background: #2d49231f; }
+.settings-panel { position: absolute; top: calc(100% + 14px); left: 0; width: 188px; padding: 8px; pointer-events: auto; box-shadow: 0 5px 0 #719c43; }
+.settings-action { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 12px; border: 0; border-radius: 7px; color: #35472a; background: transparent; font-size: 14px; font-weight: 700; cursor: pointer; text-align: left; }
+.settings-action:hover { background: #e2edb3; }
+.settings-action svg { flex: 0 0 22px; width: 22px; height: 22px; }
+.extra-tools { margin-top: 5px; padding-top: 5px; border-top: 1px solid #bccc80; }
+.playfield { position: absolute; top: 18%; left: 0; width: 100%; }
+.classic-game .playfield { top: min(20%, calc(100% - 146cqw)); }
+.has-reserve { min-height: 205cqw !important; }
+.easy-game .playfield { top: 15.75%; }
+.level-board { position: relative; width: 84%; aspect-ratio: 1; margin: 0 auto; isolation: isolate; }
+.tile { display: flex; align-items: center; justify-content: center; padding: 1px 1px calc(var(--tile-depth, 5px) + 1px); border: clamp(1.4px, .35cqw, 2px) solid #3f4c2b; border-radius: clamp(4px, .9cqw, 6px); background: #f5fac5; box-shadow: inset 0 calc(-1 * var(--tile-depth, 5px)) 0 #82ab25, inset 0 calc(-1 * var(--tile-depth, 5px) - 2px) 0 #c5df72, inset 0 1px 0 #ffffe2, 0 1px 0 #3e5424; color: #35472a; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
 button.tile { cursor: pointer; touch-action: manipulation; }
-button.tile:focus-visible { outline: 3px solid #246ccb; outline-offset: 2px; }
-.level-tile { position: absolute; width: 12.5%; height: 12.5%; transition: filter .17s, opacity .1s; }
-.tile.covered { filter: brightness(.62) saturate(.75); cursor: default; }
+button.tile:focus-visible { outline: 3px solid #1676c7; outline-offset: 2px; }
+.level-tile { position: absolute; width: calc(300% / var(--board-units)); height: calc(300% / var(--board-units) + var(--tile-depth)); transition: filter .12s, opacity .1s; }
+.tile.covered { filter: brightness(.64) saturate(.63); cursor: default; }
 .tile:disabled { opacity: 1; }
-.tile.queued { filter: brightness(1.12); }
-.holy-field .tile { box-shadow: inset 0 -5px 0 #becb74, 0 0 8px #fff9ad; }
-.random-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; min-height: 52px; margin: 11px 14px 0; gap: 14px 18px; }
-.random-pile { position: relative; width: 70px; height: 46px; }
-.random-pile:nth-child(even) { justify-self: end; }
-.random-pile .tile { width: 44px; height: 44px; position: absolute; }
-.pile-back { background: #abb975; pointer-events: none; }
-.pile-top { z-index: 10; left: 27px; top: 0; }
-.pile-count { position: absolute; right: -10px; top: 16px; font-size: 10px; color: #5d733f; }
-.reserve-area { display: flex; align-items: center; justify-content: center; min-height: 47px; gap: 5px; margin: 1px auto 9px; flex-wrap: wrap; }
-.reserve-area.empty { min-height: 30px; margin-bottom: 8px; }
-.reserve-tile { width: 39px; height: 39px; }
-.reserve-label { font-size: 11px; margin-right: 3px; color: #667c43; }
-.play-hint { font-size: 12px; color: #627b3f; letter-spacing: 1px; }
-.rack { padding: 8px; border: 3px solid #3d6224; border-radius: 10px; background: #8fbc40; box-shadow: inset 0 2px 0 #d6ec82, 0 5px 0 #527d26, 0 7px 0 #35531d; }
-.rack-grid { position: relative; height: clamp(32px, 10.5vw, 48px); background: #568f21; border-radius: 5px; box-shadow: inset 0 3px 0 #497c1e; }
-.slot-guide { position: absolute; width: calc(100% / var(--slots)); height: 100%; border-right: 1px solid #7caf3866; }
-.slot-guide:last-of-type { border-right: 0; }
-.rack-tile { position: absolute; top: 0; width: calc(100% / var(--slots) - 2px); height: 100%; transition: left .18s cubic-bezier(.22,.65,.35,1); }
-.rack-caption { display: flex; justify-content: space-between; color: #647d3c; font-size: 10px; margin: 14px 3px 0; letter-spacing: .3px; }
-.rack.danger { border-color: #8d6028; background: #d2af50; }
+.tile.queued { filter: brightness(1.07); }
+.holy-field .tile { outline: 1px solid #ffffd3; }
+.random-board { position: absolute; top: calc(100% + 1cqw); left: 50%; transform: translateX(-50%); display: grid; grid-template-columns: repeat(2, var(--tile-size)); gap: calc(9 * var(--pile-step) + 8px) 1px; }
+.random-pile { position: relative; isolation: isolate; width: var(--tile-size); height: calc(var(--tile-size) + var(--tile-depth)); }
+.random-pile .tile { position: absolute; left: 0; width: 100%; height: 100%; }
+.pile-back { background: #929d75; box-shadow: inset 0 -3px 0 #728052; pointer-events: none; }
+.pile-top { z-index: 12; top: 0; }
+.bottom-ui { position: absolute; bottom: max(2.2cqw, env(safe-area-inset-bottom)); left: 3.4%; width: 93.2%; }
+.reserve-area { position: absolute; bottom: calc(100% + 18px); left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 4px; flex-wrap: wrap; }
+.reserve-area.empty { display: none; }
+.reserve-tile { width: var(--tile-size); height: calc(var(--tile-size) + var(--tile-depth)); }
+.reserve-label { font-size: 11px; margin-right: 5px; color: #46652b; }
+.rack { padding: 1.45cqw; border: clamp(1.6px, .4cqw, 2.4px) solid #3d661a; border-radius: 2.5cqw; background: #8bd42b; box-shadow: inset 0 2px 0 #bfec71, inset 0 -3px 0 #69af1c, 0 4px 0 #467720, 0 6px 0 #a3cd6d; }
+.rack-grid { position: relative; height: 13.3cqw; border-radius: 1.6cqw; background: #54a119; box-shadow: inset 0 5px 0 #468c14, inset 0 -1px 0 #72ba28; }
+.rack-tile { position: absolute; top: 0; width: calc(100% / var(--slots) - 1px); height: 100%; transition: left .18s cubic-bezier(.22,.65,.35,1); }
+.rack.danger { border-color: #946019; background: #e2bf42; }
+.rack.danger .rack-grid { background: #9c8225; box-shadow: inset 0 5px 0 #836e1f; }
 .rack-failed { animation: rack-shake .3s; }
-.tools { display: flex; justify-content: space-around; gap: 20px; padding: 20px 15px 0; }
-.tool-button { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: 0; padding: 0; font-size: 14px; font-weight: 800; color: #3f552b; cursor: pointer; }
-.tool-face { position: relative; width: 79px; height: 59px; padding: 7px 17px; border: 2px solid #365e51; border-radius: 8px; background: #17a9ed; box-shadow: inset 0 3px 0 #8adffe, inset 0 -4px 0 #1681cc, 0 4px 0 #366b62; }
-.tool-face > svg { filter: drop-shadow(0 1px 0 #5f5436); }
-.tool-plus { position: absolute; top: -9px; right: -9px; width: 23px; height: 23px; border-radius: 50%; background: #35462b; color: #fffce5; font: 800 21px/21px system-ui; }
-.tool-button:active .tool-face { transform: translateY(3px); box-shadow: inset 0 3px 0 #8adffe, inset 0 -2px 0 #1681cc, 0 1px 0 #366b62; }
-.tool-button:disabled { cursor: default; opacity: .5; }
-.extra-tools-row { display: flex; justify-content: center; gap: 12px; align-items: center; margin-top: 20px; font-size: 10px; color: #6c8547; }
+.tools { display: flex; justify-content: space-between; gap: 9cqw; margin: 8cqw 6cqw 0; }
+.tool-button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 0 0 19.4cqw; height: 15.5cqw; padding: .8cqw .8cqw .5cqw; border: clamp(1.6px, .4cqw, 2.4px) solid #385a54; border-radius: 1.7cqw; background: #1da7ef; box-shadow: inset 0 2px 0 #97e1fa, inset 0 -3px 0 #1488ce, 0 4px 0 #496d5c, 0 6px 0 #8fa967; color: white; cursor: pointer; }
+.tool-button > svg { position: absolute; top: .3cqw; left: 50%; transform: translateX(-50%); width: 9cqw; height: 9cqw; }
+.tool-label { position: relative; font-size: clamp(16px, 4.5cqw, 27px); font-weight: 950; line-height: 1.15; -webkit-text-stroke: clamp(2px, .65cqw, 4px) #27352a; paint-order: stroke fill; text-shadow: 0 2px 0 #27352a; letter-spacing: .1cqw; }
+.tool-plus { position: absolute; top: -1.2cqw; right: -2cqw; display: grid; place-items: center; width: 5.5cqw; height: 5.5cqw; border-radius: 50%; background: #070b04; color: white; font: 900 clamp(18px, 5cqw, 30px)/1 system-ui, sans-serif; }
+.tool-button:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 2px 0 #97e1fa, inset 0 -2px 0 #1488ce, 0 1px 0 #496d5c, 0 3px 0 #8fa967; }
+.tool-button:disabled { cursor: default; opacity: 1; }
 .text-button { color: #526d35; border: 0; background: transparent; padding: 6px; cursor: pointer; font: inherit; }
 .text-button:focus-visible { outline: 2px solid #3c6c38; border-radius: 3px; }
-.extra-tools { display: flex; gap: 7px; padding-top: 12px; }
-.extra-tools .farm-button { flex: 1; font-size: 11px; min-height: 38px; padding: 5px; display: flex; align-items: center; justify-content: center; gap: 3px; }
-.extra-tools svg { width: 18px; height: 18px; }
-.extra-tools .selected { background: #ffdc73; }
 .game-toast { position: fixed; z-index: 1500; bottom: 29%; left: 50%; transform: translateX(-50%); background: #35482ce8; color: #fff9d9; padding: 10px 18px; border-radius: 22px; font-size: 12px; white-space: nowrap; pointer-events: none; }
 .toast-enter-active,.toast-leave-active { transition: opacity .15s, margin-bottom .15s; }
 .toast-enter-from,.toast-leave-to { opacity: 0; margin-bottom: -8px; }
@@ -346,6 +354,6 @@ button.tile:focus-visible { outline: 3px solid #246ccb; outline-offset: 2px; }
 @keyframes sparkle { 0% { opacity: 0; transform: scale(.1); } 23% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx),var(--dy)) rotate(var(--r)) scale(.3); } }
 @keyframes rack-shake { 25%,75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
 @keyframes result-in { from { opacity: 0; transform: translateY(12px) scale(.94); } to { opacity: 1; transform: none; } }
-@media (max-width: 360px) { #gamePage { padding: 12px 9px 20px; } .game-heading { margin-top: 16px; } .playfield { margin-top: 18px; } .tools { gap: 14px; padding-left: 5px; padding-right: 5px; } .tool-face { width: 69px; height: 54px; padding: 7px 14px; } .random-board { margin-top: 5px; } }
+@media (max-height: 700px) and (max-width: 480px) { .easy-game .playfield { top: 15%; } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .001ms !important; transition-duration: .001ms !important; } .match-burst { display: none; } }
 </style>

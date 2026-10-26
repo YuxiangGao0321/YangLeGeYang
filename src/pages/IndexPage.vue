@@ -63,7 +63,7 @@ const { setGameConfig } = useGlobalStore();
 const selectedDifficulty = ref(1);
 const difficulties = [
   { label: "简单", hint: "热身一下", config: easyGameConfig },
-  { label: "中等", hint: "刚刚好", config: middleGameConfig },
+  { label: "正常", hint: "经典叠牌", config: middleGameConfig },
   { label: "困难", hint: "动动脑筋", config: hardGameConfig },
   { label: "地狱", hint: "高手进阶", config: lunaticGameConfig },
   { label: "天狱", hint: "极限挑战", config: skyGameConfig },

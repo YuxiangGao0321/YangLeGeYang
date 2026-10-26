@@ -1,5 +1,5 @@
 <template>
-  <img v-if="number > 0 && number <= 16" class="tile-art" :src="`/art/tiles/block-${String(number).padStart(2, '0')}.svg`" alt="" draggable="false" />
+  <span v-if="number > 0 && number <= 16" class="tile-art" aria-hidden="true" v-html="artwork"></span>
   <svg v-else-if="number > 16" class="tile-art" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="#514b2b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
     <g v-if="number === 17">
       <path d="M33 20c-17-13-27 3-20 21 6 18 13 13 19 13s14 4 20-14c6-19-7-31-19-20Z" fill="#f57759" />
@@ -32,9 +32,14 @@
 import { computed } from "vue";
 const props = defineProps<{ type: string }>();
 const number = computed(() => /^farm:\d{2}$/.test(props.type) ? Number(props.type.slice(5)) : 0);
+// Bundle trusted local SVGs into the component so external image requests
+// and browser content filters cannot leave otherwise playable tiles blank.
+const tiles = import.meta.glob<string>("../../public/art/tiles/*.svg", { as: "raw", eager: true });
+const artwork = computed(() => tiles[`../../public/art/tiles/block-${String(number.value).padStart(2, '0')}.svg`] || "");
 </script>
 
 <style scoped>
-.tile-art { width: 92%; height: 92%; display: block; margin: auto; pointer-events: none; user-select: none; }
+.tile-art { width: 97%; height: 97%; display: block; margin: auto; pointer-events: none; user-select: none; }
+.tile-art :deep(svg) { display: block; width: 100%; height: 100%; }
 .custom-art { font-size: 30px; line-height: 1; }
 </style>

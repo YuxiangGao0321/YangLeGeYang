@@ -269,14 +269,54 @@ check("all difficulties and extreme contraction keep grid coordinates inside the
   }];
   for (const preset of presets) {
     const game = start(preset);
-    assert(board(game).every((block) => Number.isInteger(block.x) && Number.isInteger(block.y) &&
+    assert(board(game).every((block) => Number.isFinite(block.x) && Number.isFinite(block.y) &&
       block.x >= 0 && block.x <= 21 && block.y >= 0 && block.y <= 21));
-    assert(board(game).every((block) => [0, 1].includes(block.x % 3) && [0, 1].includes(block.y % 3)));
+    if (!preset.boardLayout) {
+      assert(board(game).every((block) => Number.isInteger(block.x) && Number.isInteger(block.y) &&
+        [0, 1].includes(block.x % 3) && [0, 1].includes(block.y % 3)));
+    } else {
+      assert(board(game).every((block) => block.x + 3 <= 21));
+    }
     const counts = new Map();
     for (const block of sources(game)) counts.set(block.type, (counts.get(block.type) || 0) + 1);
     assert([...counts.values()].every((count) => count % preset.composeNum === 0));
     conserved(game);
   }
+});
+
+check("reference layouts preserve geometric coverage including half-tile offsets", () => {
+  for (const preset of [configs.easyGameConfig, configs.middleGameConfig]) {
+    const game = start(preset);
+    const blocks = board(game);
+    blocks.forEach((block, index) => {
+      const covers = blocks.slice(0, index).filter((lower) =>
+        Math.abs(lower.x - block.x) < 3 && Math.abs(lower.y - block.y) < 3);
+      assert.deepEqual(block.higherThanBlocks.map((lower) => lower.id), covers.map((lower) => lower.id));
+      if (block.lowerThanBlocks.length) assert.equal(game.doClickBlock(block), false);
+    });
+    const exposed = blocks.filter((block) => !block.lowerThanBlocks.length);
+    assert(exposed.length >= 7);
+    assert(game.doClickBlock(exposed[0]));
+    assert(game.doRevert());
+    conserved(game);
+  }
+});
+
+check("the 18-tile tutorial exposes seven faces and can be cleared without tools", () => {
+  const game = start(configs.easyGameConfig);
+  assert.equal(game.totalBlockNum.value, 18);
+  assert.equal(game.randomBlocksVal.value.length, 0);
+  assert.equal(board(game).filter((block) => !block.lowerThanBlocks.length).length, 7);
+  for (let move = 0; move < 18; move++) {
+    const available = board(game).filter((block) => block.status === 0 && !block.lowerThanBlocks.length);
+    const selected = available.find((block) => slots(game).some((tile) => tile.type === block.type)) || available[0];
+    assert(selected);
+    assert(game.doClickBlock(selected));
+    if (game.pendingMatchIds.value.length) assert(game.settleMatch());
+    conserved(game);
+  }
+  assert.equal(game.gameStatus.value, 3);
+  assert.equal(game.clearBlockNum.value, 18);
 });
 
 check("shuffle preserves types and mixed actions conserve every tile", () => {

@@ -30,6 +30,8 @@ interface ChessBoardUnitType {
  * 游戏配置类型
  */
 interface GameConfigType {
+  // Screenshot-matched layouts; custom games keep the procedural board.
+  boardLayout?: "classic-easy" | "classic-normal";
   // 槽容量
   slotNum: number;
   // 需要多少个一样块的才能合成

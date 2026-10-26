@@ -27,20 +27,21 @@ export const defaultGameConfig: GameConfigType = {
  * 简单难度
  */
 export const easyGameConfig: GameConfigType = {
+  boardLayout: "classic-easy",
   // 槽容量
   slotNum: 7,
   // 需要多少个一样块的才能合成
   composeNum: 3,
   // 动物类别数
-  typeNum: 8,
+  typeNum: 3,
   // 每层块数（大致）
-  levelBlockNum: 10,
+  levelBlockNum: 9,
   // 边界收缩步长
   borderStep: 1,
   // 总层数（最小为 2）
-  levelNum: 6,
+  levelNum: 2,
   // 随机区块数（数组长度代表随机区数量，值表示每个随机区生产多少块）
-  randomBlocks: [4, 4],
+  randomBlocks: [],
   // 动物数组
   animals,
 };
@@ -49,20 +50,21 @@ export const easyGameConfig: GameConfigType = {
  * 中等难度
  */
 export const middleGameConfig: GameConfigType = {
+  boardLayout: "classic-normal",
   // 槽容量
   slotNum: 7,
   // 需要多少个一样块的才能合成
   composeNum: 3,
   // 动物类别数
-  typeNum: 10,
+  typeNum: 16,
   // 每层块数（大致）
-  levelBlockNum: 12,
+  levelBlockNum: 24,
   // 边界收缩步长
   borderStep: 1,
   // 总层数（最小为 2）
-  levelNum: 7,
+  levelNum: 4,
   // 随机区块数（数组长度代表随机区数量，值表示每个随机区生产多少块）
-  randomBlocks: [5, 5],
+  randomBlocks: [8, 8],
   // 动物数组
   animals,
 };

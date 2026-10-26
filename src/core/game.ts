@@ -159,6 +159,7 @@ const useGame = () => {
       : [];
     const validAnimals = animals.length ? animals : defaultGameConfig.animals;
     return {
+      boardLayout: source.boardLayout,
       slotNum: integer(source.slotNum, 7, 1),
       composeNum: integer(source.composeNum, 3, 1),
       typeNum: Math.min(integer(source.typeNum, 12, 1), validAnimals.length),
@@ -170,6 +171,51 @@ const useGame = () => {
         : [...defaultGameConfig.randomBlocks],
       animals: [...validAnimals],
     };
+  };
+
+  /** Face coordinates use the same three-unit tile as the coverage graph. */
+  const placeClassicBoard = (blocks: BlockType[]) => {
+    if (config.boardLayout === "classic-easy" && blocks.length === 18 && config.typeNum === 3) {
+      const positions = [
+        [3, 0], [6, 0], [3, 3], [6, 3],
+        [12, 0], [15, 0], [12, 3], [15, 3],
+        [6, 9], [9, 9], [12, 9],
+        [3, 1.5], [6, 1.5], [12, 1.5], [15, 1.5],
+        [6, 9.4], [9, 9.4], [12, 9.4],
+      ];
+      // Six of each pattern, including the seven exposed faces in the reference.
+      const pattern = [1, 3, 2, 3, 3, 3, 1, 1, 1, 2, 2, 2, 3, 1, 2, 3, 1, 2];
+      blocks.forEach((block, index) => {
+        [block.x, block.y] = positions[index];
+        block.type = config.animals[pattern[index] - 1];
+      });
+    } else if (config.boardLayout === "classic-normal") {
+      // Four open corners and a central gap leave the silhouette legible.
+      const foundation = [
+        [0, 0], [3, 0], [9, 0], [15, 0], [18, 0],
+        [0, 3], [3, 3], [6, 3], [9, 3], [12, 3], [15, 3], [18, 3],
+        [0, 6], [3, 6], [6, 6], [12, 6], [15, 6], [18, 6],
+        [1.5, 9], [4.5, 9], [7.5, 9], [10.5, 9], [13.5, 9], [16.5, 9],
+        [1.5, 12], [4.5, 12], [7.5, 12], [10.5, 12], [13.5, 12], [16.5, 12],
+        [0, 13.5], [3, 13.5], [15, 13.5], [18, 13.5],
+        [0, 16.5], [3, 16.5], [15, 16.5], [18, 16.5],
+        [0, 19.5], [3, 19.5], [15, 19.5], [18, 19.5],
+      ];
+      const exposed = [
+        [3, 3], [9, 0], [15, 3], [3, 9], [7.5, 7.5], [10.5, 7.5], [15, 9],
+        [6, 12], [12, 12], [1.5, 15], [6, 15], [9, 15], [12, 15], [16.5, 15],
+        [1.5, 18], [16.5, 18],
+      ];
+      const underCount = Math.max(0, blocks.length - exposed.length);
+      blocks.forEach((block, index) => {
+        const point = index < underCount
+          ? foundation[index % foundation.length]
+          : exposed[index - underCount];
+        [block.x, block.y] = point;
+      });
+    } else return false;
+    levelBlocksVal.value = blocks;
+    return true;
   };
 
   /**
@@ -252,6 +298,10 @@ const useGame = () => {
       position += count;
       return stack;
     });
+    if (placeClassicBoard(allBlocks.value.slice(position))) {
+      rebuildRelations();
+      return;
+    }
     let remaining = totalBlockNum.value - randomCount;
     let minX = 0;
     let minY = 0;
